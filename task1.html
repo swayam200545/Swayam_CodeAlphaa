@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Gallery </title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --card: #16161f;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #f0f0f0;
+    --muted: #6b6b80;
+    --border: rgba(255,255,255,0.07);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* Noise overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 1000; opacity: 0.4;
+  }
+
+  /* Header */
+  header {
+    padding: 2rem 4rem;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,10,15,0.9);
+    backdrop-filter: blur(20px);
+  }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 3px; }
+  .logo span { color: var(--accent); }
+  .badge {
+    background: var(--accent); color: #000; font-size: 0.65rem;
+    font-weight: 700; letter-spacing: 2px; padding: 4px 12px; text-transform: uppercase;
+  }
+
+  /* Hero */
+  .hero {
+    padding: 5rem 4rem 3rem;
+    display: flex; align-items: flex-end; gap: 2rem;
+  }
+  .hero h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(4rem, 10vw, 9rem);
+    line-height: 0.9;
+    letter-spacing: 2px;
+  }
+  .hero h1 em { color: var(--accent); font-style: normal; }
+  .hero-sub { font-size: 0.9rem; color: var(--muted); max-width: 260px; padding-bottom: 0.8rem; }
+
+  /* Filter Bar */
+  .filters {
+    padding: 1rem 4rem 2rem;
+    display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;
+  }
+  .filter-label { font-size: 0.7rem; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-right: 0.5rem; }
+  .filter-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted); font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem; padding: 6px 18px; cursor: pointer;
+    transition: all 0.25s; letter-spacing: 1px;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+  }
+  .filter-btn:hover, .filter-btn.active {
+    background: var(--accent); color: #000; border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Gallery Grid */
+  .gallery {
+    padding: 0 4rem 4rem;
+    columns: 4 280px; column-gap: 1rem;
+  }
+  .gallery-item {
+    break-inside: avoid; margin-bottom: 1rem;
+    position: relative; overflow: hidden; cursor: pointer;
+    border: 1px solid var(--border);
+    transition: transform 0.3s cubic-bezier(.22,.68,0,1.2);
+  }
+  .gallery-item:hover { transform: scale(1.02); z-index: 10; }
+  .gallery-item img {
+    width: 100%; display: block;
+    transition: transform 0.5s ease;
+    filter: saturate(0.8) brightness(0.9);
+  }
+  .gallery-item:hover img { transform: scale(1.08); filter: saturate(1.1) brightness(1); }
+  .item-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 50%);
+    opacity: 0; transition: opacity 0.3s;
+    display: flex; align-items: flex-end; padding: 1.2rem;
+  }
+  .gallery-item:hover .item-overlay { opacity: 1; }
+  .item-info { }
+  .item-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 2px; }
+  .item-cat {
+    font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent); font-weight: 500;
+  }
+  .item-zoom {
+    position: absolute; top: 1rem; right: 1rem;
+    width: 36px; height: 36px;
+    background: var(--accent); color: #000;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; opacity: 0;
+    transition: opacity 0.3s;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+  }
+  .gallery-item:hover .item-zoom { opacity: 1; }
+
+  /* Lightbox */
+  .lightbox {
+    position: fixed; inset: 0; z-index: 9000;
+    background: rgba(5,5,10,0.97);
+    display: none; align-items: center; justify-content: center;
+    backdrop-filter: blur(10px);
+  }
+  .lightbox.open { display: flex; }
+  .lb-inner {
+    position: relative; max-width: 90vw; max-height: 90vh;
+    animation: lbIn 0.35s cubic-bezier(.22,.68,0,1.2);
+  }
+  @keyframes lbIn {
+    from { opacity:0; transform: scale(0.85) }
+    to { opacity:1; transform: scale(1) }
+  }
+  .lb-inner img {
+    max-width: 90vw; max-height: 80vh;
+    object-fit: contain; border: 1px solid var(--border);
+    display: block;
+  }
+  .lb-caption {
+    padding: 1rem 0 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .lb-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 2px; }
+  .lb-cat { font-size: 0.7rem; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+  .lb-close {
+    position: fixed; top: 2rem; right: 2rem;
+    background: var(--accent); color: #000; border: none; cursor: pointer;
+    font-size: 1.2rem; width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+  }
+  .lb-nav {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+    color: var(--text); font-size: 1.4rem; width: 52px; height: 52px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: all 0.2s; user-select: none;
+  }
+  .lb-nav:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+  .lb-prev { left: 1.5rem; }
+  .lb-next { right: 1.5rem; }
+  .lb-counter {
+    position: fixed; bottom: 2rem; left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem; letter-spacing: 3px; color: var(--muted);
+  }
+
+  /* Responsive */
+  @media(max-width: 768px) {
+    header { padding: 1.2rem 1.5rem; }
+    .hero { padding: 3rem 1.5rem 2rem; flex-direction: column; gap: 1rem; }
+    .filters { padding: 0.5rem 1.5rem 1.5rem; }
+    .gallery { padding: 0 1.5rem 3rem; columns: 2 150px; }
+    .lb-nav { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Swayam Dhokte <span>.</span></div>
+  <div class="badge">Lens & Light</div>
+</header>
+
+<section class="hero">
+  <h1>VISUAL<br><em>STORIES</em></h1>
+  <p class="hero-sub">A curated gallery of stunning photography across nature, urban, and abstract themes.</p>
+</section>
+
+<div class="filters">
+  <span class="filter-label">Filter by</span>
+  <button class="filter-btn active" onclick="filterGallery('all', this)">All</button>
+  <button class="filter-btn" onclick="filterGallery('nature', this)">Nature</button>
+  <button class="filter-btn" onclick="filterGallery('urban', this)">Urban</button>
+  <button class="filter-btn" onclick="filterGallery('abstract', this)">Abstract</button>
+  <button class="filter-btn" onclick="filterGallery('portrait', this)">Portrait</button>
+</div>
+
+<div class="gallery" id="gallery"></div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lb-close" onclick="closeLightbox()">✕</button>
+  <button class="lb-nav lb-prev" onclick="changeImage(-1)">&#8592;</button>
+  <button class="lb-nav lb-next" onclick="changeImage(1)">&#8594;</button>
+  <div class="lb-inner">
+    <img id="lb-img" src="" alt="">
+    <div class="lb-caption">
+      <div>
+        <div class="lb-title" id="lb-title"></div>
+        <div class="lb-cat" id="lb-cat"></div>
+      </div>
+    </div>
+  </div>
+  <div class="lb-counter" id="lb-counter"></div>
+</div>
+
+<script>
+const images = [
+  { src: 'https://picsum.photos/seed/forest1/800/600', title: 'Ancient Forest', cat: 'nature' },
+  { src: 'https://picsum.photos/seed/city1/600/900', title: 'City Lights', cat: 'urban' },
+  { src: 'https://picsum.photos/seed/abstract1/700/500', title: 'Flow State', cat: 'abstract' },
+  { src: 'https://picsum.photos/seed/portrait1/600/800', title: 'Golden Hour', cat: 'portrait' },
+  { src: 'https://picsum.photos/seed/mountain1/900/600', title: 'Summit View', cat: 'nature' },
+  { src: 'https://picsum.photos/seed/street1/700/700', title: 'Street Pulse', cat: 'urban' },
+  { src: 'https://picsum.photos/seed/wave1/800/500', title: 'Wave Form', cat: 'abstract' },
+  { src: 'https://picsum.photos/seed/person2/600/900', title: 'Quiet Moment', cat: 'portrait' },
+  { src: 'https://picsum.photos/seed/lake1/900/600', title: 'Mirror Lake', cat: 'nature' },
+  { src: 'https://picsum.photos/seed/build1/600/800', title: 'Steel & Glass', cat: 'urban' },
+  { src: 'https://picsum.photos/seed/color1/800/600', title: 'Chromatic', cat: 'abstract' },
+  { src: 'https://picsum.photos/seed/face1/700/700', title: 'Inner Light', cat: 'portrait' },
+  { src: 'https://picsum.photos/seed/desert1/900/600', title: 'Vast Silence', cat: 'nature' },
+  { src: 'https://picsum.photos/seed/night1/800/700', title: 'Neon Dreams', cat: 'urban' },
+  { src: 'https://picsum.photos/seed/geo1/700/700', title: 'Geometry', cat: 'abstract' },
+  { src: 'https://picsum.photos/seed/silhou1/600/900', title: 'Silhouette', cat: 'portrait' },
+];
+
+let currentIndex = 0;
+let filteredImages = [...images];
+
+function renderGallery(items) {
+  const gallery = document.getElementById('gallery');
+  gallery.innerHTML = '';
+  items.forEach((img, i) => {
+    const div = document.createElement('div');
+    div.className = 'gallery-item';
+    div.setAttribute('data-cat', img.cat);
+    div.style.animationDelay = `${i * 0.04}s`;
+    div.innerHTML = `
+      <img src="${img.src}" alt="${img.title}" loading="lazy">
+      <div class="item-overlay">
+        <div class="item-info">
+          <div class="item-title">${img.title}</div>
+          <div class="item-cat">${img.cat}</div>
+        </div>
+      </div>
+      <div class="item-zoom">⤢</div>
+    `;
+    div.addEventListener('click', () => openLightbox(i));
+    gallery.appendChild(div);
+  });
+}
+
+function filterGallery(cat, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filteredImages = cat === 'all' ? [...images] : images.filter(img => img.cat === cat);
+  renderGallery(filteredImages);
+}
+
+function openLightbox(index) {
+  currentIndex = index;
+  updateLightbox();
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function updateLightbox() {
+  const img = filteredImages[currentIndex];
+  document.getElementById('lb-img').src = img.src;
+  document.getElementById('lb-title').textContent = img.title;
+  document.getElementById('lb-cat').textContent = img.cat;
+  document.getElementById('lb-counter').textContent = `${currentIndex + 1} / ${filteredImages.length}`;
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function changeImage(dir) {
+  currentIndex = (currentIndex + dir + filteredImages.length) % filteredImages.length;
+  updateLightbox();
+}
+
+document.getElementById('lightbox').addEventListener('click', function(e) {
+  if (e.target === this) closeLightbox();
+});
+
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('lightbox').classList.contains('open')) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') changeImage(-1);
+  if (e.key === 'ArrowRight') changeImage(1);
+});
+
+renderGallery(images);
+</script>
+</body>
+</html>

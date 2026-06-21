@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculator — CodeAlpha Task 2</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --surface: #ede8de;
+    --card: #1a1a2e;
+    --accent: #ff4757;
+    --accent2: #2ed573;
+    --text-dark: #1a1a2e;
+    --muted: #9b9b9b;
+    --shadow: 6px 6px 0px rgba(0,0,0,0.85);
+    --shadow-sm: 3px 3px 0px rgba(0,0,0,0.85);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(26,26,46,0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(26,26,46,0.07) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  .badge {
+    font-size: 0.65rem; letter-spacing: 3px; text-transform: uppercase;
+    font-family: 'Space Mono', monospace;
+    color: var(--text-dark); opacity: 0.5;
+    margin-bottom: 2rem;
+  }
+
+  .calc-wrapper {
+    position: relative;
+  }
+  .calc-shadow {
+    position: absolute; top: 8px; left: 8px;
+    width: 100%; height: 100%;
+    background: var(--text-dark);
+  }
+  .calc {
+    position: relative;
+    background: var(--text-dark);
+    width: 360px;
+    border: 2px solid var(--text-dark);
+    padding: 1.5rem;
+    z-index: 1;
+  }
+
+  /* Display */
+  .display-wrap {
+    background: #0d0d1a;
+    border: 2px solid rgba(255,255,255,0.1);
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.2rem;
+    min-height: 110px;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    position: relative;
+    overflow: hidden;
+  }
+  .display-wrap::after {
+    content: 'CALC_01';
+    position: absolute; top: 0.7rem; left: 1rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.55rem; letter-spacing: 2px;
+    color: rgba(255,255,255,0.18);
+  }
+  .expr {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem; color: rgba(255,255,255,0.4);
+    text-align: right; min-height: 1.2em;
+    word-break: break-all;
+    margin-bottom: 0.5rem;
+  }
+  .display {
+    font-family: 'Space Mono', monospace;
+    font-size: 2.8rem; font-weight: 700;
+    color: #fff; text-align: right;
+    word-break: break-all;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+  .display.error { color: var(--accent); font-size: 1.4rem; }
+
+  /* Buttons grid */
+  .btns {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  button {
+    font-family: 'Space Mono', monospace;
+    font-size: 1rem; font-weight: 700;
+    cursor: pointer;
+    border: 2px solid rgba(255,255,255,0.12);
+    padding: 0;
+    height: 68px;
+    transition: transform 0.08s, box-shadow 0.08s;
+    user-select: none;
+    letter-spacing: 1px;
+    position: relative;
+  }
+  button:active { transform: translate(3px,3px); box-shadow: none !important; }
+
+  .btn-num {
+    background: #23233a;
+    color: #fff;
+    box-shadow: 3px 3px 0 rgba(255,255,255,0.15);
+  }
+  .btn-num:hover { background: #2d2d4a; }
+
+  .btn-op {
+    background: #fff;
+    color: var(--text-dark);
+    box-shadow: 3px 3px 0 rgba(255,255,255,0.6);
+  }
+  .btn-op:hover { background: #e8e8e8; }
+
+  .btn-clear {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 3px 3px 0 rgba(255,71,87,0.5);
+    grid-column: span 2;
+  }
+  .btn-clear:hover { background: #ff3344; }
+
+  .btn-eq {
+    background: var(--accent2);
+    color: #000;
+    box-shadow: 3px 3px 0 rgba(46,213,115,0.5);
+    grid-column: span 2;
+  }
+  .btn-eq:hover { background: #26c465; }
+
+  .btn-zero { grid-column: span 2; }
+
+  .key-hint {
+    margin-top: 1rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem; letter-spacing: 1.5px;
+    color: rgba(255,255,255,0.25);
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  /* History panel */
+  .history-wrap {
+    position: absolute; left: calc(100% + 20px); top: 0;
+    width: 220px;
+    background: var(--text-dark);
+    border: 2px solid rgba(255,255,255,0.1);
+    padding: 1rem;
+    max-height: 400px; overflow-y: auto;
+  }
+  .history-title {
+    font-size: 0.65rem; letter-spacing: 2px; color: var(--muted);
+    text-transform: uppercase; margin-bottom: 0.8rem;
+    font-family: 'Space Mono', monospace;
+  }
+  .history-item {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    cursor: pointer;
+    transition: background 0.2s;
+    padding-left: 0.5rem;
+  }
+  .history-item:hover { background: rgba(255,255,255,0.04); }
+  .h-expr { font-size: 0.7rem; color: var(--muted); font-family: 'Space Mono', monospace; }
+  .h-result { font-size: 1rem; color: #fff; font-family: 'Space Mono', monospace; font-weight: 700; }
+  .history-empty { font-size: 0.75rem; color: rgba(255,255,255,0.2); font-family: 'Space Mono', monospace; }
+
+  @media(max-width: 680px) {
+    .history-wrap { display: none; }
+    .calc { width: 320px; }
+    button { height: 60px; font-size: 0.9rem; }
+    .display { font-size: 2.2rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="badge">CALCIFY · SMART CALCULATOR</div>
+
+<div class="calc-wrapper">
+  <div class="calc-shadow"></div>
+  <div class="calc">
+    <div class="display-wrap">
+      <div class="expr" id="expr"></div>
+      <div class="display" id="display">0</div>
+    </div>
+    <div class="btns">
+      <button class="btn-clear" onclick="clearAll()">AC</button>
+      <button class="btn-op" onclick="delChar()">⌫</button>
+      <button class="btn-op" onclick="current += '%'; updateDisplay();">%</button>
+
+      <button class="btn-num" onclick="input('7')">7</button>
+      <button class="btn-num" onclick="input('8')">8</button>
+      <button class="btn-num" onclick="input('9')">9</button>
+      <button class="btn-op" onclick="inputOp('÷')">÷</button>
+
+      <button class="btn-num" onclick="input('4')">4</button>
+      <button class="btn-num" onclick="input('5')">5</button>
+      <button class="btn-num" onclick="input('6')">6</button>
+      <button class="btn-op" onclick="inputOp('×')">×</button>
+
+      <button class="btn-num" onclick="input('1')">1</button>
+      <button class="btn-num" onclick="input('2')">2</button>
+      <button class="btn-num" onclick="input('3')">3</button>
+      <button class="btn-op" onclick="inputOp('−')">−</button>
+
+      <button class="btn-num btn-zero" onclick="input('0')">0</button>
+      <button class="btn-num" onclick="inputDot()">.</button>
+      <button class="btn-op" onclick="inputOp('+')">+</button>
+
+      <button class="btn-eq" onclick="calculate()">=</button>
+    </div>
+    <div class="key-hint">Keyboard supported ↑ try it</div>
+  </div>
+
+  <div class="history-wrap" id="historyPanel">
+    <div class="history-title">// History</div>
+    <div id="historyList"><div class="history-empty">no entries yet</div></div>
+  </div>
+</div>
+<script>
+let current = '0';
+let expression = '';
+let shouldReset = false;
+const history = [];
+
+const display = document.getElementById('display');
+const exprEl = document.getElementById('expr');
+
+function updateDisplay() {
+  display.className = 'display';
+
+  if (current.length > 12) {
+    display.textContent = Number(current).toExponential(4);
+  } else {
+    display.textContent = current;
+  }
+}
+
+function input(num) {
+  if (shouldReset) {
+    current = '';
+    shouldReset = false;
+  }
+
+  if (current === '0') {
+    current = num;
+  } else if (current.length < 15) {
+    current += num;
+  }
+
+  updateDisplay();
+}
+
+function inputDot() {
+  if (shouldReset) {
+    current = '0';
+    shouldReset = false;
+  }
+
+  if (!current.includes('.')) {
+    current += '.';
+  }
+
+  updateDisplay();
+}
+
+function inputOp(op) {
+
+  if (expression && shouldReset) {
+
+    expression = expression.trim();
+
+    const parts = expression.split(' ');
+    parts[parts.length - 1] = op;
+
+    expression = parts.join(' ') + ' ';
+    exprEl.textContent = expression;
+
+    return;
+  }
+
+  expression += current + ' ' + op + ' ';
+  exprEl.textContent = expression;
+
+  shouldReset = true;
+}
+
+function clearAll() {
+  current = '0';
+  expression = '';
+  shouldReset = false;
+
+  exprEl.textContent = '';
+  updateDisplay();
+}
+
+function delChar() {
+
+  if (shouldReset) return;
+
+  if (current.length <= 1) {
+    current = '0';
+  } else {
+    current = current.slice(0, -1);
+  }
+
+  updateDisplay();
+}
+
+function calculate() {
+
+  if (!expression) return;
+
+  const fullExpr = expression + current;
+
+  let evalStr = fullExpr
+    .replace(/÷/g, '/')
+    .replace(/×/g, '*')
+    .replace(/−/g, '-');
+
+  evalStr = evalStr.replace(
+    /(\d+(\.\d+)?)%/g,
+    '($1/100)'
+  );
+
+  try {
+
+    let result = Function(
+      '"use strict"; return (' + evalStr + ')'
+    )();
+
+    if (!isFinite(result)) {
+      throw new Error('Infinity');
+    }
+
+    result = parseFloat(result.toPrecision(12));
+
+    addHistory(fullExpr, result);
+
+    exprEl.textContent = fullExpr + ' =';
+
+    current = String(result);
+    expression = '';
+    shouldReset = true;
+
+    updateDisplay();
+
+  } catch (e) {
+
+    display.textContent = 'Error';
+    display.className = 'display error';
+
+    setTimeout(clearAll, 1500);
+  }
+}
+
+function addHistory(expr, result) {
+
+  history.unshift({
+    expr,
+    result
+  });
+
+  if (history.length > 20) {
+    history.pop();
+  }
+
+  const list = document.getElementById('historyList');
+
+  list.innerHTML = history.map((h, i) => `
+    <div class="history-item" onclick="useHistory(${i})">
+      <div class="h-expr">${h.expr}</div>
+      <div class="h-result">${h.result}</div>
+    </div>
+  `).join('');
+}
+
+function useHistory(i) {
+
+  current = String(history[i].result);
+  expression = '';
+  shouldReset = false;
+
+  updateDisplay();
+}
+
+document.addEventListener('keydown', (e) => {
+
+  if (e.key >= '0' && e.key <= '9') {
+    input(e.key);
+  }
+
+  else if (e.key === '.') {
+    inputDot();
+  }
+
+  else if (e.key === '+') {
+    inputOp('+');
+  }
+
+  else if (e.key === '-') {
+    inputOp('−');
+  }
+
+  else if (e.key === '*') {
+    inputOp('×');
+  }
+
+  else if (e.key === '/') {
+    e.preventDefault();
+    inputOp('÷');
+  }
+
+  else if (e.key === '%') {
+    current += '%';
+    updateDisplay();
+  }
+
+  else if (e.key === 'Enter' || e.key === '=') {
+    calculate();
+  }
+
+  else if (e.key === 'Backspace') {
+    delChar();
+  }
+
+  else if (e.key === 'Escape') {
+    clearAll();
+  }
+});
+
+updateDisplay();
+</script>
+</body>
+</html>
